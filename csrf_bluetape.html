@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+    <head>
+        <meta charset="utf-8">
+        <title>Earn $$ quickly!</title>
+    </head>
+    <script src="https://code.jquery.com/jquery-3.4.1.slim.min.js"></script>
+    <body>
+        <form action="http://localhost/TranskripRequest/add" method="post">
+            <input type="hidden" name="requestType" value="DPS_ID">
+            <input type="hidden" name="requestUsage" value="Request Transkrip">
+            <a id="earn" href="#">Earn $$$ quickly!</a>
+        </form>
+    </body>
+    <script>
+        jQuery(document).ready(function($) {
+            $("#earn").click(function() {
+                $("form").submit();
+            });
+        });
+    </script>
+</html>
