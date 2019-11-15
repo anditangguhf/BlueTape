@@ -13,10 +13,11 @@ defined('BASEPATH') OR exit('No direct script access allowed');
                     <h5>Permohonan Baru</h5>
                     <?php if (is_array($forbiddenTypes)): ?>
                         <form method="POST" action="/TranskripRequest/add">
-                        <!--
-                            Forgot to set CSRF to TRUE and this code below, so the site is vulnerable to CSRF Attack
+                            <!--
+                                Bluetape uses this hidden input to check the CSRF token for preventing CSRF attack.
+                                This needs to be removed so CSRF Attack can be done
+                            -->
                             <input type="hidden" name="<?= $this->security->get_csrf_token_name() ?>" value="<?= $this->security->get_csrf_hash() ?>" />
-                        -->
                             <div class="row">
                                 <div class="large-4 column">
                                     <label>Yang memohon:

@@ -54,13 +54,13 @@ class TranskripRequest extends CI_Controller {
         try {
             if ($this->input->server('REQUEST_METHOD') == 'POST'){
                 date_default_timezone_set("Asia/Jakarta");
-                $userInfo = $this->Auth_model->getUserInfo(); // mendapatkan user info
-                $requests = $this->Transkrip_model->requestsBy($userInfo['email']); // mendapatkan seluruh request menggunakan email
-                $forbiddenTypes = $this->Transkrip_model->requestTypesForbidden($requests); // mendapatkan request yg diperbolehkan
+                $userInfo = $this->Auth_model->getUserInfo();
+                $requests = $this->Transkrip_model->requestsBy($userInfo['email']);
+                $forbiddenTypes = $this->Transkrip_model->requestTypesForbidden($requests);
                 if (is_string($forbiddenTypes)) {
                     throw new Exception($forbiddenTypes);
                 }
-                // $requestType = htmlspecialchars($this->input->post('requestType')); // get request type to be checked with forbidden types; converts to html entities
+                $requestType = htmlspecialchars($this->input->post('requestType'));
                 $requestType = $this->input->post('requestType');
                 if (in_array($requestType, $forbiddenTypes)) {
                     throw new Exception("Tidak bisa, karena transkrip $requestType sudah pernah dicetak di semester ini.");
@@ -68,46 +68,58 @@ class TranskripRequest extends CI_Controller {
 
                 /*
                     #   CodeIgniter automatically escaping all inserted values to produce safer queries.
-                        Exploit this by using basic CI query function without escaping chars so we can do sql injection.
+                        We can exploit this by using basic CI query function without escaping chars so we can do sql injection.
 
-                    #   htmlspecialchars sanitizes inputted data, changes symbols to html entities.
-                        This is useful to prevent script injection. Exploit this so we can do script injection.
+                    #   htmlspecialchars() is a php function that sanitizes inputted data, changes symbols to html entities.
+                        This is useful to prevent script injection, so it needs to be removed so script injection can be done.
 
-                    #   CodeIgniter uses a setting in config.php to prevent CSRF Attack. CodeIgniter sets csrf_protection to TRUE.
-                        This needs to be disabled / unset so we can do CSRF Attack.
+                    #   CodeIgniter uses settings in config.php to prevent CSRF Attack. CodeIgniter sets csrf_protection to TRUE,
+                        sets csrf_token and csrf_cookie_name so CI can do CSRF token checking.
+                        This needs to be disabled / reverted back to default (where protection is set to FALSE) so we can do CSRF Attack.
 
                     Reference: https://www.tutorialspoint.com/codeigniter/codeigniter_security.htm
                 */
 
                 /* Original insert function */
+                $this->db->insert('Transkrip', array(
+                    'requestByEmail' => $userInfo['email'],
+                    'requestDateTime' => strftime('%Y-%m-%d %H:%M:%S'),
+                    'requestType' => $requestType,
+                    'requestUsage' => htmlspecialchars($this->input->post('requestUsage'))
+                ));
+
+                /*
+                 * ===== SQL Injection Exploit =====
+                 * DB Insert function without sanitizer, using multi_query so sql injection can be done
+                 */
+                // $dbcon = mysqli_connect('localhost', 'root', '', 'kamin_bluetape');
+                // $query = "INSERT INTO transkrip (requestByEmail, requestDateTime, requestType, requestUsage) VALUES ('".$userInfo['email']."', '".strftime('%Y-%m-%d %H:%M:%S')."', '$requestType', '".htmlspecialchars($this->input->post('requestUsage'))."')";
+                // mysqli_multi_query($dbcon, $query);
+
+                /*
+                 * ===== Script Injection Exploit =====
+                 * DB Insert function without sanitizer for inputted data  (removed htmlspecialchars)
+                 * We can still use the original insert function as the one that prevents script injection is the htmlspecialchars
+                 * insert this script: <script>window.location.href="https://www.youtube.com/watch?v=dQw4w9WgXcQ"</script>
+                 */
+                // $this->db->insert('Transkrip', array(
+                //     'requestByEmail' => $userInfo['email'],
+                //     'requestDateTime' => strftime('%Y-%m-%d %H:%M:%S'),
+                //     'requestType' => $requestType,
+                //     'requestUsage' => $this->input->post('requestUsage') // removed htmlspecialchars()
+                // ));
+
+                /*
+                 * ===== CSRF Attack =====
+                 * To enable CSRF Attack we need to disable CSRF Protection to FALSE, and remove any CSRF Token checking on TranskripRequest page.
+                 * We can still use the original insert function as it doesn't affect the attack.
+                 */
                 // $this->db->insert('Transkrip', array(
                 //     'requestByEmail' => $userInfo['email'],
                 //     'requestDateTime' => strftime('%Y-%m-%d %H:%M:%S'),
                 //     'requestType' => $requestType,
                 //     'requestUsage' => htmlspecialchars($this->input->post('requestUsage'))
                 // ));
-
-                $dbcon = mysqli_connect('localhost', 'root', '', 'kamin_bluetape');
-                /*
-                 * ===== SQL Injection Exploit =====
-                 * DB Insert function without sanitizer
-                 */
-                // $query = "INSERT INTO transkrip (requestByEmail, requestDateTime, requestType, requestUsage) VALUES ('".$userInfo['email']."', '".strftime('%Y-%m-%d %H:%M:%S')."', '$requestType', '".htmlspecialchars($this->input->post('requestUsage'))."')";
-
-                /*
-                 * ===== Script Injection Exploit =====
-                 * DB Insert function without sanitizer, and no sanitizer for inputted data  (remove htmlspecialchars)
-                 * insert this script: <script>window.location.href="https://www.youtube.com/watch?v=dQw4w9WgXcQ"</script>
-                 */
-                // $query = "INSERT INTO transkrip (requestByEmail, requestDateTime, requestType, requestUsage) VALUES ('".$userInfo['email']."', '".strftime('%Y-%m-%d %H:%M:%S')."', '$requestType', '".$this->input->post('requestUsage')."')";
-
-                /*
-                 * ===== CSRF Attack =====
-                 */
-                 $query = "INSERT INTO transkrip (requestByEmail, requestDateTime, requestType, requestUsage) VALUES ('".$userInfo['email']."', '".strftime('%Y-%m-%d %H:%M:%S')."', '$requestType', '".$this->input->post('requestUsage')."')";
-                // echo $query;
-                // exit();
-                mysqli_multi_query($dbcon, $query);
 
                 $this->session->set_flashdata('info', 'Permintaan cetak transkrip sudah dikirim. Silahkan cek statusnya secara berkala di situs ini.');
 
